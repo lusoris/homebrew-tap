@@ -16,7 +16,12 @@ class Libvmaf < Formula
   depends_on "ninja" => :build
   depends_on "pkg-config" => :build
   depends_on "python@3.13" => :build
-  depends_on "xxd" => :build
+  # `xxd` is not a standalone Homebrew formula — it ships inside `vim`
+  # on Homebrew-core. macOS already provides `/usr/bin/xxd` from Apple's
+  # vim install, so this is technically a no-op there, but we depend on
+  # it explicitly so Linuxbrew users (and macOS systems where
+  # `/usr/bin/xxd` has been removed) get a working build.
+  depends_on "vim" => :build
 
   # Vulkan-via-MoltenVK is the active GPU path on macOS until the native
   # Metal backend's T8-1b runtime + T8-1c first kernel PRs land
