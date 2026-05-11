@@ -1,0 +1,36 @@
+name: test-formulae
+
+# Runs `brew test-bot` on the tap's formulae on every push / PR.
+# Public-repo Mac runners are free; macos-latest is Apple Silicon.
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  test-bot:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Set up Homebrew
+        uses: Homebrew/actions/setup-homebrew@master
+
+      - name: Check out tap
+        uses: actions/checkout@v4
+
+      - name: brew test-bot --only-tap-syntax
+        run: brew test-bot --only-tap-syntax
+
+      # Bottle-build smoke (libvmaf only — ffmpeg-full takes ~25 min and
+      # the patches need n8.1 sha256 set; gated behind a label).
+      - name: brew install --build-from-source libvmaf
+        if: github.event_name == 'push' || contains(github.event.pull_request.labels.*.name, 'build-test')
+        run: |
+          brew tap "$GITHUB_REPOSITORY_OWNER/tap" "$PWD"
+          brew install --HEAD --build-from-source "$GITHUB_REPOSITORY_OWNER/tap/libvmaf"
+          brew test "$GITHUB_REPOSITORY_OWNER/tap/libvmaf"
