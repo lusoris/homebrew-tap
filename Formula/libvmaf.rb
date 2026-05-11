@@ -22,6 +22,15 @@ class Libvmaf < Formula
   # it explicitly so Linuxbrew users (and macOS systems where
   # `/usr/bin/xxd` has been removed) get a working build.
   depends_on "vim" => :build
+  # The fork tracks `model/tiny/*.onnx` via Git LFS (tiny-AI weights).
+  # Without git-lfs the `git clone` Homebrew issues for `head` /
+  # release-tarball downloads fails with:
+  #   Error: git-lfs filter-process: git-lfs: command not found
+  #   fatal: the remote end hung up unexpectedly
+  # The LFS payload is small (~few MB of int8 ONNX) and the formula
+  # doesn't link against it directly, but the clone has to succeed
+  # before the build starts.
+  depends_on "git-lfs" => :build
 
   # Vulkan-via-MoltenVK is the active GPU path on macOS until the native
   # Metal backend's T8-1b runtime + T8-1c first kernel PRs land

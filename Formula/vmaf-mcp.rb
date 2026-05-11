@@ -8,6 +8,9 @@ class VmafMcp < Formula
 
   depends_on "lusoris/tap/libvmaf"
   depends_on "python@3.13"
+  # See libvmaf.rb — repo tracks `model/tiny/*.onnx` via Git LFS; without
+  # git-lfs on Homebrew's sandbox PATH the clone fails during checkout.
+  depends_on "git-lfs" => :build
 
   # As with `vmaf-tune`, dependencies (mcp, pydantic, anyio, fastapi-style
   # transports) come from `mcp-server/vmaf-mcp/pyproject.toml`. The list is

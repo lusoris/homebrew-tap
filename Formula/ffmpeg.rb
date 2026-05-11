@@ -17,6 +17,11 @@ class Ffmpeg < Formula
   depends_on "lusoris/tap/libvmaf"
   depends_on "nasm" => :build
   depends_on "pkg-config" => :build
+  # The `vmaf-patches` resource clones lusoris/vmaf which tracks
+  # `model/tiny/*.onnx` via Git LFS; without git-lfs on Homebrew's
+  # sandbox PATH the resource fetch fails during checkout with
+  # "git-lfs filter-process: git-lfs: command not found".
+  depends_on "git-lfs" => :build
 
   # Codec / muxer dependencies. This is the "full" build the tap promises
   # (per Lawrence: he installs `ffmpeg-full` and wants our libvmaf wired

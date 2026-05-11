@@ -9,6 +9,11 @@ class VmafTune < Formula
   depends_on "lusoris/tap/libvmaf"
   depends_on "ffmpeg"
   depends_on "python@3.13"
+  # Repo tracks `model/tiny/*.onnx` via Git LFS; without git-lfs on
+  # Homebrew's sandbox PATH the clone fails with "git-lfs: command not
+  # found" during `git checkout`. Putting it on the build PATH fixes it
+  # even if the user already has git-lfs installed system-wide.
+  depends_on "git-lfs" => :build
 
   # Python deps are resolved by the upstream `tools/vmaf-tune/pyproject.toml`.
   # We let `pip` pull them into the virtualenv at install time rather than
