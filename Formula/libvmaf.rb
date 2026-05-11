@@ -26,18 +26,25 @@ require "download_strategy"
 # GIT_LFS_SKIP_SMUDGE=1 for belt-and-braces, the clone succeeds even
 # on hosts that have never installed git-lfs.
 class LusorisGitNoLfsDownloadStrategy < GitDownloadStrategy
-  def fetch(timeout: nil, **options)
+  # Forward all positional + keyword args to `super` rather than pinning
+  # a specific signature — Homebrew's GitDownloadStrategy has shipped at
+  # least three different `fetch` / `update` signatures across versions
+  # (`fetch(timeout:)`, `fetch(timeout: nil, **)`, `fetch(args)`), and
+  # any mismatch crashes with `wrong number of arguments (given N,
+  # expected M)` before the formula's def install ever runs. `*args,
+  # **kwargs` is the version-proof shape.
+  def fetch(*args, **kwargs)
     with_env(GIT_LFS_SKIP_SMUDGE: "1") { super }
   end
 
-  def update
+  def update(*args, **kwargs)
     with_env(GIT_LFS_SKIP_SMUDGE: "1") do
       disable_lfs_filters!
       super
     end
   end
 
-  def clone_repo
+  def clone_repo(*args, **kwargs)
     with_env(GIT_LFS_SKIP_SMUDGE: "1") do
       super
       disable_lfs_filters!
