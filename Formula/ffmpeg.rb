@@ -170,6 +170,15 @@ class Ffmpeg < Formula
     on_macos do
       args << "--enable-videotoolbox"
       args << "--enable-audiotoolbox"
+      # Native Metal backend on the libvmaf filter (metal_device option
+      # on the regular libvmaf filter). The fork builds libvmaf with
+      # enable_metal=enabled on macOS by default (ADR-0420 / ADR-0421);
+      # this configure flag activates the vmaf_metal_state_init /
+      # vmaf_metal_import_state wiring added to vf_libvmaf.c by
+      # ffmpeg-patches/0012-libvmaf-wire-metal-backend-selector.patch.
+      # The matching pkg-config probe (libvmaf_metal >= 3.0.0) is wired
+      # by the same patch.
+      args << "--enable-libvmaf-metal"
     end
 
     on_linux do
