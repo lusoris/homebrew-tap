@@ -44,29 +44,29 @@ If you only need stock VMAF scoring against a local file, Homebrew-core's
 
 ## Mac backend selection
 
-On macOS the right answer is **CPU + NEON SIMD** (the default). Here's why
-the alternatives don't pay their cost today:
+The native Metal backend is **scaffold-only today** (ADR-0338 / T8-1):
+every runtime entry point returns `-ENOSYS` until the T8-1b runtime PR
++ T8-1c first-kernel PR land. Endgame is native Metal, but until then:
 
 | Backend | Status on Mac | Verdict |
 |---|---|---|
-| **CPU + NEON SIMD** | Production. AVX2 / AVX-512 on Intel; NEON on Apple Silicon. Already the hot-path for every feature extractor. | **Use this.** |
-| **Metal** | Scaffold only (ADR-0338 / T8-1). The Meson option is `enable_metal=auto`, so it would auto-enable on macOS — but every runtime entry point returns `-ENOSYS` until the T8-1b runtime PR lands. The build advertises an acceleration path that nothing actually uses. The `libvmaf.rb` formula forces `enable_metal=disabled` to avoid the false advertising. | **Don't enable** until the T8-1b runtime PR ships. |
-| **Vulkan via MoltenVK** | Works, but everything goes through the Vulkan → Metal translation layer. Requires `brew install molten-vk` + the keg-only `vulkan-headers`. The gains over NEON on Apple Silicon are marginal for libvmaf's hot-paths (the integer feature extractors are bound by memory bandwidth, not by FLOPs the GPU could win on). | **Skip** unless you have a specific reason. |
-| **CUDA / SYCL / HIP** | Not applicable. | — |
+| **Vulkan via MoltenVK** | **The working GPU path today.** SPIR-V kernels run on Apple Silicon through MoltenVK's Vulkan → Metal translation. ~2–4× faster than NEON on compute-bound kernels (SSIM, ANSNR); roughly even on memory-bandwidth-bound kernels. Enabled by default in `libvmaf.rb`. | **Default. GPU acceleration available now.** |
+| **CPU + NEON SIMD** | Production. NEON on Apple Silicon hand-tuned across every feature extractor. Always available as a fallback (`vmaf --backend cpu …`). | Fallback / explicit opt-out. |
+| **Metal (native)** | Scaffold landed (T8-1, ADR-0361, ~1,950 LOC, all `-ENOSYS`). Runtime PR (T8-1b) and first real kernel (T8-1c) in flight — see [issue tracker](https://github.com/lusoris/vmaf/issues). Estimated 2–3 weeks of focused work, then 7 follow-up kernels. | **Coming**. Tap formula will flip from `enable_vulkan` to `enable_metal` once T8-1c ships. |
+| **CUDA / SYCL / HIP** | Not applicable on Mac. | — |
 
-If you do want to experiment with Vulkan-on-MoltenVK anyway, build from
-source with overrides:
+### Runtime: pointing the Vulkan loader at MoltenVK
+
+If `vmaf --backend vulkan …` reports *"no Vulkan device found"*, the
+Vulkan loader can't see MoltenVK's ICD. Fix with:
 
 ```bash
-brew install molten-vk
-brew install --HEAD --build-from-source \
-  -s lusoris/tap/libvmaf  # then patch the formula's args to flip
-                          # -Denable_vulkan=disabled to =enabled
+export VK_ICD_FILENAMES="$(brew --prefix molten-vk)/share/vulkan/icd.d/MoltenVK_icd.json"
 ```
 
-The runtime probe at `libvmaf/src/vulkan/runtime.c` falls back to CPU if
-no Vulkan-capable device is enumerated, so a misconfigured MoltenVK
-install fails gracefully rather than crashing.
+Add it to your `~/.zshrc` / `~/.bashrc` for permanence. The formula's
+`brew info lusoris/tap/libvmaf` caveats repeat this so it's not
+lost-to-history information.
 
 ## Caveats
 
