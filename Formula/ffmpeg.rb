@@ -39,9 +39,14 @@ class Ffmpeg < Formula
   depends_on "lame"
   depends_on "libass"
   depends_on "libbluray"
-  depends_on "libdovi"
   depends_on "libplacebo"
   depends_on "librist"
+  # libdovi (Dolby Vision metadata) is not in homebrew-core — it's a
+  # Rust crate, available only via third-party taps. Users who want
+  # DV metadata can install libdovi via their own tap and override
+  # the formula's configure args with `--enable-libdovi`. Not adding
+  # a hard dep here to avoid forcing every tonemap user to set up a
+  # second tap.
   depends_on "libsoxr"
   depends_on "libvidstab"
   depends_on "libvorbis"
@@ -108,7 +113,6 @@ class Ffmpeg < Formula
       --enable-libass
       --enable-libbluray
       --enable-libdav1d
-      --enable-libdovi
       --enable-libfreetype
       --enable-libmp3lame
       --enable-libopencore-amrnb
