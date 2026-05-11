@@ -1,10 +1,14 @@
+require_relative "libvmaf"
+
 class VmafTune < Formula
   include Language::Python::Virtualenv
 
   desc "Per-shot encoding tuning CLI on top of libvmaf (Lusoris fork)"
   homepage "https://github.com/lusoris/vmaf/tree/master/tools/vmaf-tune"
   license "BSD-3-Clause-Patent"
-  head "https://github.com/lusoris/vmaf.git", branch: "master"
+  head "https://github.com/lusoris/vmaf.git",
+       branch: "master",
+       using:  LusorisGitNoLfsDownloadStrategy
 
   depends_on "lusoris/tap/libvmaf"
   depends_on "ffmpeg"

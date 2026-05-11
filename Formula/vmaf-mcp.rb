@@ -1,10 +1,14 @@
+require_relative "libvmaf"
+
 class VmafMcp < Formula
   include Language::Python::Virtualenv
 
   desc "MCP (Model Context Protocol) server exposing libvmaf to AI agents"
   homepage "https://github.com/lusoris/vmaf/tree/master/mcp-server/vmaf-mcp"
   license "BSD-3-Clause-Patent"
-  head "https://github.com/lusoris/vmaf.git", branch: "master"
+  head "https://github.com/lusoris/vmaf.git",
+       branch: "master",
+       using:  LusorisGitNoLfsDownloadStrategy
 
   depends_on "lusoris/tap/libvmaf"
   depends_on "python@3.13"

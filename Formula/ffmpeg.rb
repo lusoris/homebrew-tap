@@ -1,3 +1,5 @@
+require_relative "libvmaf"
+
 class Ffmpeg < Formula
   desc "FFmpeg n8.1 with the Lusoris fork's libvmaf patch series applied"
   homepage "https://github.com/lusoris/vmaf/tree/master/ffmpeg-patches"
@@ -11,7 +13,7 @@ class Ffmpeg < Formula
   resource "vmaf-patches" do
     url "https://github.com/lusoris/vmaf.git",
         branch: "master",
-        using:  :git
+        using:  LusorisGitNoLfsDownloadStrategy
   end
 
   depends_on "lusoris/tap/libvmaf"

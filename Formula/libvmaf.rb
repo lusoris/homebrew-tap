@@ -1,8 +1,74 @@
+require "download_strategy"
+
+# Custom Git strategy that bypasses Git LFS filters entirely during
+# the clone + checkout. The lusoris/vmaf repo tracks `model/tiny/*.onnx`
+# via Git LFS for the tiny-AI runtime, but none of the formulae in this
+# tap need the actual ONNX payloads to build — they're only consumed
+# at runtime by the opt-in `--enable-dnn` path.
+#
+# Why a custom strategy rather than `depends_on "git-lfs" => :build`:
+# build deps are only put on PATH for the install phase. The clone +
+# checkout happens earlier, in the fetch phase, where build-dep PATH
+# is not active. Users with /opt/homebrew/bin/git-lfs installed still
+# hit:
+#     git-lfs filter-process: git-lfs: command not found
+#     fatal: the remote end hung up unexpectedly
+# because the fetch-phase env doesn't include /opt/homebrew/bin (only
+# the system PATH). Setting GIT_LFS_SKIP_SMUDGE alone is not enough —
+# git still invokes `git-lfs filter-process` for the smudge filter
+# defined in .gitattributes; the env var only short-circuits the
+# *download* of LFS content, not the filter itself.
+#
+# Strategy: override the per-clone git config so the LFS filter is a
+# no-op (`git config filter.lfs.smudge ""` + .clean + required=false).
+# After this, git treats LFS pointer files as plain text content (which
+# is fine — that's what they are on disk). Combined with
+# GIT_LFS_SKIP_SMUDGE=1 for belt-and-braces, the clone succeeds even
+# on hosts that have never installed git-lfs.
+class LusorisGitNoLfsDownloadStrategy < GitDownloadStrategy
+  def fetch(timeout: nil, **options)
+    with_env(GIT_LFS_SKIP_SMUDGE: "1") { super }
+  end
+
+  def update
+    with_env(GIT_LFS_SKIP_SMUDGE: "1") do
+      disable_lfs_filters!
+      super
+    end
+  end
+
+  def clone_repo
+    with_env(GIT_LFS_SKIP_SMUDGE: "1") do
+      super
+      disable_lfs_filters!
+    end
+  end
+
+  private
+
+  def disable_lfs_filters!
+    return unless cached_location.directory?
+
+    %w[smudge clean].each do |op|
+      system_command "git",
+                     args:    ["-C", cached_location.to_s,
+                               "config", "--local", "filter.lfs.#{op}", "/bin/true"],
+                     verbose: false
+    end
+    system_command "git",
+                   args:    ["-C", cached_location.to_s,
+                             "config", "--local", "filter.lfs.required", "false"],
+                   verbose: false
+  end
+end
+
 class Libvmaf < Formula
   desc "Perceptual video quality assessment (Lusoris fork — GPU + tiny-AI extras)"
   homepage "https://github.com/lusoris/vmaf"
   license "BSD-3-Clause-Patent"
-  head "https://github.com/lusoris/vmaf.git", branch: "master"
+  head "https://github.com/lusoris/vmaf.git",
+       branch: "master",
+       using:  LusorisGitNoLfsDownloadStrategy
 
   # Stable URL/SHA will be uncommented once release-please cuts the first
   # v3.x.y-lusoris.N release on lusoris/vmaf. Until then, this formula is
