@@ -72,8 +72,24 @@ class Ffmpeg < Formula
   depends_on "zeromq"
   depends_on "zimg"
 
+  # Vulkan — enables FFmpeg's native Vulkan hwaccel (hwcontext_vulkan)
+  # and the fork-local `-vf libvmaf_vulkan` zero-copy filter. Without
+  # these, hardware paths like `-hwaccel vulkan` for HEVC decode fail
+  # with `Unable to open the libvulkan library!` at runtime — the
+  # loader is dlopen()ed, not linked.
+  #
+  # `vulkan-headers` is build-time only. `vulkan-loader` provides
+  # `libvulkan.dylib` / `libvulkan.so.1` — the Khronos loader that
+  # FFmpeg dlopen()s. On macOS, `molten-vk` provides the actual ICD
+  # (`libMoltenVK.dylib` + `MoltenVK_icd.json`) that the loader
+  # delegates to; users still need to point the loader at the ICD via
+  # `VK_ICD_FILENAMES` at runtime (see caveats).
+  depends_on "vulkan-headers" => :build
+  depends_on "vulkan-loader"
+
   on_macos do
     depends_on "openssl@3"
+    depends_on "molten-vk"
   end
 
   on_linux do
@@ -145,6 +161,7 @@ class Ffmpeg < Formula
       --enable-libsoxr
       --enable-libspeex
       --enable-openssl
+      --enable-vulkan
       --disable-htmlpages
     ]
     args << "--enable-libfdk-aac" if build.with?("fdk-aac")
@@ -165,11 +182,37 @@ class Ffmpeg < Formula
     system "make", "install"
   end
 
+  def caveats
+    s = <<~EOS
+      FFmpeg was built with Vulkan hwaccel support (`--enable-vulkan`).
+      The Khronos Vulkan loader (`vulkan-loader`) is dlopen()ed at runtime;
+      it locates GPU drivers ('ICDs') via the `VK_ICD_FILENAMES` env var
+      or the standard search paths.
+    EOS
+    if OS.mac?
+      s += <<~EOS
+
+        On macOS the only Vulkan ICD is MoltenVK (Vulkan → Metal
+        translation). Point the loader at it before running ffmpeg with
+        `-hwaccel vulkan` or `-vf libvmaf_vulkan`:
+
+          export VK_ICD_FILENAMES="$(brew --prefix molten-vk)/share/vulkan/icd.d/MoltenVK_icd.json"
+
+        Add it to your shell rc for permanence. Verify with:
+
+          vulkaninfo --summary   # (brew install vulkan-tools)
+      EOS
+    end
+    s
+  end
+
   test do
     out = shell_output("#{bin}/ffmpeg -hide_banner -version 2>&1", 0)
     assert_match(/ffmpeg version/, out)
     # Confirm libvmaf was linked in.
     cfg = shell_output("#{bin}/ffmpeg -hide_banner -buildconf 2>&1", 0)
     assert_match(/--enable-libvmaf/, cfg)
+    # Confirm Vulkan hwaccel was built in.
+    assert_match(/--enable-vulkan/, cfg)
   end
 end
