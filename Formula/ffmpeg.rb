@@ -32,6 +32,8 @@ class Ffmpeg < Formula
   depends_on "lame"
   depends_on "libass"
   depends_on "libbluray"
+  depends_on "libdovi"
+  depends_on "libplacebo"
   depends_on "librist"
   depends_on "libsoxr"
   depends_on "libvidstab"
@@ -99,11 +101,13 @@ class Ffmpeg < Formula
       --enable-libass
       --enable-libbluray
       --enable-libdav1d
+      --enable-libdovi
       --enable-libfreetype
       --enable-libmp3lame
       --enable-libopencore-amrnb
       --enable-libopencore-amrwb
       --enable-libopenjpeg
+      --enable-libplacebo
       --enable-librist
       --enable-librubberband
       --enable-libsnappy

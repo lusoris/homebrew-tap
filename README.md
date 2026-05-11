@@ -23,7 +23,7 @@ brew install --HEAD lusoris/tap/libvmaf
 
 | Formula | What it ships |
 |---|---|
-| `libvmaf` | The `libvmaf` C library + `vmaf` CLI. Default-on: CPU-only with all SIMD paths (AVX2, AVX-512 on capable hosts; NEON on arm64). Optional: `--with-cuda` (requires CUDA toolkit), `--with-vulkan` (requires the Vulkan SDK). SYCL is opt-in via `--with-sycl` and needs Intel oneAPI installed locally. |
+| `libvmaf` | The `libvmaf` C library + `vmaf` CLI. Default-on: CPU-only with all SIMD paths (AVX2, AVX-512 on capable hosts; NEON on arm64). GPU backends are opt-in (see "Mac backend selection" below). |
 | `ffmpeg` | FFmpeg `n8.1` with the fork's [ffmpeg-patches](https://github.com/lusoris/vmaf/tree/master/ffmpeg-patches) series applied. Enables `-vf libvmaf` against this tap's `libvmaf`, plus the fork-local `--enable-libvmaf-cuda` / `--enable-libvmaf-vulkan` / `--enable-libvmaf-sycl` options. |
 | `vmaf-tune` | The `vmaf-tune` Python CLI for per-shot encoding tuning (shot detection via TransNet V2, per-shot CRF predicates, codec adapters for x264/x265/SVT-AV1/libaom-av1/VVenC/NVENC/AMF/QSV). |
 | `vmaf-mcp` | The `vmaf-mcp` MCP (Model Context Protocol) server — exposes libvmaf scoring + tiny-AI feature surfaces to AI agents over JSON-RPC. |
@@ -41,6 +41,32 @@ fast enough that Homebrew-core's `libvmaf` formula doesn't track our:
 
 If you only need stock VMAF scoring against a local file, Homebrew-core's
 `libvmaf` is fine. If you're using any of the above, this tap is for you.
+
+## Mac backend selection
+
+On macOS the right answer is **CPU + NEON SIMD** (the default). Here's why
+the alternatives don't pay their cost today:
+
+| Backend | Status on Mac | Verdict |
+|---|---|---|
+| **CPU + NEON SIMD** | Production. AVX2 / AVX-512 on Intel; NEON on Apple Silicon. Already the hot-path for every feature extractor. | **Use this.** |
+| **Metal** | Scaffold only (ADR-0338 / T8-1). The Meson option is `enable_metal=auto`, so it would auto-enable on macOS — but every runtime entry point returns `-ENOSYS` until the T8-1b runtime PR lands. The build advertises an acceleration path that nothing actually uses. The `libvmaf.rb` formula forces `enable_metal=disabled` to avoid the false advertising. | **Don't enable** until the T8-1b runtime PR ships. |
+| **Vulkan via MoltenVK** | Works, but everything goes through the Vulkan → Metal translation layer. Requires `brew install molten-vk` + the keg-only `vulkan-headers`. The gains over NEON on Apple Silicon are marginal for libvmaf's hot-paths (the integer feature extractors are bound by memory bandwidth, not by FLOPs the GPU could win on). | **Skip** unless you have a specific reason. |
+| **CUDA / SYCL / HIP** | Not applicable. | — |
+
+If you do want to experiment with Vulkan-on-MoltenVK anyway, build from
+source with overrides:
+
+```bash
+brew install molten-vk
+brew install --HEAD --build-from-source \
+  -s lusoris/tap/libvmaf  # then patch the formula's args to flip
+                          # -Denable_vulkan=disabled to =enabled
+```
+
+The runtime probe at `libvmaf/src/vulkan/runtime.c` falls back to CPU if
+no Vulkan-capable device is enumerated, so a misconfigured MoltenVK
+install fails gracefully rather than crashing.
 
 ## Caveats
 
