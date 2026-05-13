@@ -21,7 +21,7 @@ jobs:
         uses: Homebrew/actions/setup-homebrew@master
 
       - name: Check out tap
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: brew test-bot --only-tap-syntax
         run: brew test-bot --only-tap-syntax
